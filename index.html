@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud-Native Volume Passthrough for Kata Peer Pods</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=Red+Hat+Text:wght@400;500;700&family=Red+Hat+Mono:wght@400;500&display=swap');
+
+  :root {
+    --rh-red: #EE0000;
+    --rh-red-dark: #A30000;
+    --rh-black: #151515;
+    --rh-gray-dark: #3C3F42;
+    --rh-gray-mid: #6A6E73;
+    --rh-gray-light: #D2D2D2;
+    --rh-gray-bg: #F5F5F5;
+    --rh-white: #FFFFFF;
+    --rh-blue: #06C;
+    --rh-teal: #009596;
+    --rh-orange: #F4B678;
+    --rh-purple: #5E40BE;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Red Hat Text', 'Segoe UI', sans-serif;
+    background: var(--rh-black);
+    color: var(--rh-white);
+  }
+
+  .slide {
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide.active { display: flex; }
+
+  .slide--title {
+    background: var(--rh-black);
+    text-align: left;
+    align-items: flex-start;
+    padding: 80px 100px;
+  }
+
+  .slide--title::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 55%; height: 100%;
+    background: var(--rh-red);
+    clip-path: polygon(25% 0%, 100% 0%, 100% 100%, 0% 100%);
+    z-index: 0;
+  }
+
+  .slide--title::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 58%; height: 100%;
+    background: var(--rh-red-dark);
+    clip-path: polygon(25% 0%, 28% 0%, 3% 100%, 0% 100%);
+    z-index: 0;
+  }
+
+  .slide--content {
+    background: var(--rh-white);
+    color: var(--rh-black);
+  }
+
+  .slide--dark {
+    background: var(--rh-black);
+    color: var(--rh-white);
+  }
+
+  .slide--diagram {
+    background: var(--rh-white);
+    color: var(--rh-black);
+    padding: 40px 60px;
+  }
+
+  .slide--closing {
+    background: var(--rh-black);
+    text-align: center;
+    align-items: center;
+  }
+
+  .slide--closing::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 45%;
+    background: var(--rh-red);
+    clip-path: polygon(0 35%, 100% 0%, 100% 100%, 0% 100%);
+    z-index: 0;
+  }
+
+  .slide--closing::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 48%;
+    background: var(--rh-red-dark);
+    clip-path: polygon(0 35%, 100% 0%, 100% 3%, 0 38%);
+    z-index: 0;
+  }
+
+  .slide--content::before,
+  .slide--diagram::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 5px;
+    background: var(--rh-red);
+  }
+
+  h1 {
+    font-family: 'Red Hat Display', sans-serif;
+    font-weight: 900;
+    font-size: 3.2em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-family: 'Red Hat Display', sans-serif;
+    font-weight: 700;
+    font-size: 2em;
+    color: var(--rh-red);
+    margin-bottom: 25px;
+    line-height: 1.2;
+  }
+
+  .slide--dark h2 { color: var(--rh-red); }
+  .slide--closing h1 { color: var(--rh-white); position: relative; z-index: 1; }
+  .slide--closing h2 { color: rgba(255,255,255,0.9); position: relative; z-index: 1; }
+
+  h3 {
+    font-family: 'Red Hat Display', sans-serif;
+    font-weight: 700;
+    font-size: 1.2em;
+    color: var(--rh-gray-dark);
+    margin: 16px 0 8px 0;
+  }
+
+  .slide--title h1 { font-size: 3.4em; z-index: 1; position: relative; }
+  .slide--title .meta { color: rgba(255,255,255,0.5); }
+
+  p {
+    font-size: 1.1em;
+    line-height: 1.65;
+    color: var(--rh-gray-dark);
+    margin-bottom: 12px;
+  }
+
+  .slide--dark p { color: var(--rh-gray-light); }
+
+  ul { list-style: none; padding: 0; margin: 8px 0; }
+
+  ul li {
+    font-size: 1.05em;
+    line-height: 1.55;
+    padding: 6px 0 6px 28px;
+    position: relative;
+    color: var(--rh-gray-dark);
+  }
+
+  .slide--dark ul li { color: var(--rh-gray-light); }
+
+  ul li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px;
+    width: 9px; height: 9px;
+    background: var(--rh-red);
+    border-radius: 2px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 700;
+    font-family: 'Red Hat Mono', monospace;
+    margin: 2px 3px;
+  }
+
+  .badge--red { background: var(--rh-red); color: white; }
+  .badge--teal { background: var(--rh-teal); color: white; }
+  .badge--blue { background: var(--rh-blue); color: white; }
+  .badge--purple { background: var(--rh-purple); color: white; }
+  .badge--dark { background: var(--rh-gray-dark); color: white; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 35px;
+    margin-top: 8px;
+  }
+
+  .col h3 {
+    font-size: 1.1em;
+    color: var(--rh-red);
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--rh-gray-light);
+  }
+
+  .col ul li { font-size: 1em; padding: 5px 0 5px 24px; }
+  .col ul li::before { top: 12px; width: 8px; height: 8px; }
+
+  .code-block {
+    background: var(--rh-black);
+    color: #E0E0E0;
+    padding: 16px 22px;
+    border-radius: 8px;
+    font-family: 'Red Hat Mono', monospace;
+    font-size: 0.8em;
+    line-height: 1.65;
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+
+  .code-block .comment { color: #6A9955; }
+  .code-block .keyword { color: #569CD6; }
+  .code-block .string { color: #CE9178; }
+  .code-block .cmd { color: #DCDCAA; }
+
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+
+  .flow-step {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-weight: 500;
+    text-align: center;
+    color: white;
+    min-width: 110px;
+  }
+
+  .flow-arrow { font-size: 1.4em; color: var(--rh-gray-mid); }
+
+  .highlight-box {
+    background: rgba(238,0,0,0.06);
+    border: 1px solid rgba(238,0,0,0.2);
+    border-radius: 10px;
+    padding: 16px 22px;
+    margin: 12px 0;
+  }
+
+  .highlight-box p { color: var(--rh-gray-dark); margin: 0; }
+  .highlight-box strong { color: var(--rh-red); }
+
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 15px auto;
+    max-width: 920px;
+    width: 100%;
+  }
+
+  .arch-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .arch-box {
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-family: 'Red Hat Mono', monospace;
+    font-size: 0.8em;
+    font-weight: 500;
+    text-align: center;
+    min-width: 150px;
+    color: white;
+  }
+
+  .arch-box--k8s { background: var(--rh-blue); }
+  .arch-box--csi { background: var(--rh-teal); }
+  .arch-box--caa { background: var(--rh-red); }
+  .arch-box--cloud { background: var(--rh-purple); }
+  .arch-box--vm { background: var(--rh-gray-dark); }
+  .arch-box--file {
+    background: var(--rh-gray-bg);
+    color: var(--rh-gray-dark);
+    border: 2px dashed var(--rh-gray-mid);
+    font-size: 0.75em;
+  }
+
+  .arch-arrow {
+    font-size: 1.6em;
+    color: var(--rh-gray-mid);
+    text-align: center;
+    line-height: 1;
+  }
+
+  .arch-label {
+    font-size: 0.72em;
+    color: var(--rh-gray-mid);
+    text-align: center;
+    font-style: italic;
+    margin-top: -6px;
+  }
+
+  .arch-section {
+    border: 2px solid var(--rh-gray-light);
+    border-radius: 12px;
+    padding: 14px 18px;
+    position: relative;
+  }
+
+  .arch-section-label {
+    position: absolute;
+    top: -11px; left: 18px;
+    background: white;
+    padding: 0 10px;
+    font-size: 0.7em;
+    font-weight: 700;
+    color: var(--rh-gray-mid);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .pr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+  }
+
+  .pr-table th {
+    background: var(--rh-red);
+    color: white;
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'Red Hat Display', sans-serif;
+    font-weight: 700;
+    font-size: 0.9em;
+  }
+
+  .pr-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rh-gray-light);
+    font-size: 0.9em;
+    color: var(--rh-gray-dark);
+  }
+
+  .pr-table tr:nth-child(even) td { background: var(--rh-gray-bg); }
+
+  .status-merged { color: var(--rh-teal); font-weight: 700; }
+  .status-review { color: var(--rh-blue); font-weight: 700; }
+
+  .security-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 12px 0;
+  }
+
+  .security-card {
+    background: var(--rh-gray-bg);
+    border-radius: 10px;
+    padding: 16px;
+    border-left: 4px solid var(--rh-red);
+  }
+
+  .security-card h4 {
+    font-family: 'Red Hat Display', sans-serif;
+    font-weight: 700;
+    color: var(--rh-red);
+    margin-bottom: 6px;
+    font-size: 0.95em;
+  }
+
+  .security-card p {
+    font-size: 0.88em;
+    margin: 0;
+    color: var(--rh-gray-dark);
+    line-height: 1.45;
+  }
+
+  .slide-footer {
+    position: absolute;
+    bottom: 18px;
+    left: 80px; right: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75em;
+    color: var(--rh-gray-mid);
+  }
+
+  .slide--dark .slide-footer,
+  .slide--title .slide-footer { color: rgba(255,255,255,0.3); }
+  .slide--closing .slide-footer { color: rgba(255,255,255,0.4); }
+
+  .slide-footer .logo {
+    font-family: 'Red Hat Display', sans-serif;
+    font-weight: 900;
+    font-size: 1.1em;
+    color: var(--rh-red);
+  }
+
+  .slide--closing .slide-footer .logo { color: var(--rh-white); }
+
+  .nav {
+    position: fixed;
+    bottom: 25px; right: 30px;
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  .nav button {
+    width: 44px; height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: var(--rh-red);
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav button:hover { background: var(--rh-red-dark); transform: scale(1.1); }
+
+  .slide-counter {
+    position: fixed;
+    bottom: 30px; right: 130px;
+    font-family: 'Red Hat Mono', monospace;
+    font-size: 0.85em;
+    color: rgba(255,255,255,0.4);
+    z-index: 100;
+  }
+
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-top: 10px;
+  }
+
+  .three-col .col { padding: 12px; }
+
+  .provider-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.88em;
+  }
+
+  .provider-table th {
+    background: var(--rh-red);
+    color: white;
+    padding: 8px 14px;
+    text-align: left;
+    font-weight: 700;
+  }
+
+  .provider-table td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--rh-gray-light);
+    color: var(--rh-gray-dark);
+  }
+
+  .provider-table tr:nth-child(even) td { background: var(--rh-gray-bg); }
+
+  .num-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    background: var(--rh-red);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85em;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== SLIDE 1: Title ==================== -->
+<div class="slide slide--title active" id="slide-1">
+  <div style="position:relative; z-index:1; max-width:48%;">
+    <div style="margin-bottom:35px;">
+      <svg width="120" height="40" viewBox="0 0 613 145" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M127.47 83.49c12.51 0 30.61-2.58 30.61-17.46a14 14 0 0 0-.31-3.42l-7.45-32.36c-1.72-7.12-3.23-10.35-15.73-16.6C124.89 8.69 103.76.5 97.51.5 91.69.5 90 8 83.06 8c-6.68 0-11.64-5.6-17.89-5.6-6 0-9.91 4.09-12.93 12.5 0 0-8.41 23.72-9.49 27.16A6.43 6.43 0 0 0 42.53 44c0 9.22 36.3 39.45 84.94 39.45M160 72.07c1.73 8.19 1.73 9.05 1.73 10.13 0 14-15.74 21.77-36.43 21.77C78.54 104 37.58 76.6 37.58 58.49a18.45 18.45 0 0 1 1.51-7.33C22.27 52 .5 55 .5 74.22c0 31.48 74.59 70.28 133.65 70.28 45.28 0 56.7-20.48 56.7-36.65 0-12.72-11-27.16-30.83-35.78" fill="#EE0000"/>
+      </svg>
+    </div>
+    <h1 style="font-size:3.2em; line-height:1.08; margin-bottom:22px; letter-spacing:-1px;">Cloud-Native<br>Volume<br>Passthrough<br><span style="color:var(--rh-red);">for Peer Pods</span></h1>
+    <div style="width:60px; height:4px; background:var(--rh-red); margin-bottom:22px; border-radius:2px;"></div>
+    <p style="font-size:1.1em; color:rgba(255,255,255,0.6); line-height:1.5; margin-bottom:30px; max-width:420px;">
+      Enabling persistent block storage for confidential container workloads across cloud providers
+    </p>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <span style="font-size:1.1em; color:rgba(255,255,255,0.9); font-weight:600;">Mohammed Adnan</span>
+      <span style="font-size:0.88em; color:rgba(255,255,255,0.5);">Software Engineering Intern &nbsp;&middot;&nbsp; Confidential Containers Team</span>
+      <span style="font-size:0.88em; color:rgba(255,255,255,0.5);">Team Buddy: Pradipta Banerjee, Senior Principal Software Engineer</span>
+    </div>
+  </div>
+  <div style="position:absolute; right:70px; top:50%; transform:translateY(-50%); z-index:1; text-align:center; color:white;">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:14px; opacity:0.85;">
+      <div style="width:68px; height:68px; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.25); border-radius:14px; display:flex; align-items:center; justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      </div>
+      <div style="width:2px; height:20px; background:rgba(255,255,255,0.2);"></div>
+      <div style="width:68px; height:68px; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.25); border-radius:14px; display:flex; align-items:center; justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+      </div>
+      <div style="width:2px; height:20px; background:rgba(255,255,255,0.2);"></div>
+      <div style="width:68px; height:68px; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.25); border-radius:14px; display:flex; align-items:center; justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+    </div>
+    <p style="margin-top:16px; font-size:0.65em; color:rgba(255,255,255,0.4); letter-spacing:3px; text-transform:uppercase; font-family:'Red Hat Mono',monospace;">Storage &middot; Cloud &middot; Security</p>
+  </div>
+  <div class="slide-footer">
+    <span class="logo" style="color:rgba(255,255,255,0.4);">Red Hat</span>
+    <span>May 2026</span>
+  </div>
+</div>
+
+<!-- ==================== SLIDE 2: Problem ==================== -->
+<div class="slide slide--content" id="slide-2">
+  <h2>The Problem</h2>
+  <p style="font-size:1.2em; margin-bottom:20px;">Peer Pods today <strong style="color:var(--rh-red)">cannot use persistent storage</strong>. When a PodVM is destroyed, all data is lost.</p>
+  <div class="two-col">
+    <div class="col">
+      <h3>What users need</h3>
+      <ul>
+        <li>Run stateful workloads &mdash; databases, message queues, ML pipelines</li>
+        <li>Data must survive pod restarts and VM teardowns</li>
+        <li>Standard Kubernetes PVC / StorageClass workflow</li>
+        <li>Works across cloud providers (Azure, AWS, etc.)</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>What was missing</h3>
+      <ul>
+        <li>No CSI driver aware of the Peer Pods architecture</li>
+        <li>No mechanism to attach cloud disks to PodVMs</li>
+        <li>No device detection inside the guest VM</li>
+        <li>No safe mount/format logic for guest volumes</li>
+      </ul>
+    </div>
+  </div>
+  <div class="highlight-box">
+    <p><strong>Goal:</strong> Enable CSI-provisioned block volumes to be attached to PodVMs as cloud-managed disks and mounted inside the guest, with data persisting across pod lifecycle.</p>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 3: Existing Approaches ==================== -->
+<div class="slide slide--content" id="slide-3">
+  <h2>Existing Approaches &amp; Their Limitations</h2>
+  <div class="two-col">
+    <div class="col">
+      <h3 style="color:var(--rh-blue);">1. CSI-Wrapper</h3>
+      <p style="font-size:0.95em;">Wraps existing CSI drivers (e.g. EBS CSI, Azure Disk CSI) by intercepting gRPC calls via a proxy. Uses a CRD (<code>PeerpodVolume</code>) to coordinate attachment.</p>
+      <ul>
+        <li>High complexity &mdash; 3 wrapper binaries per CSI driver</li>
+        <li>Tight coupling &mdash; must re-deploy for every CSI driver</li>
+        <li>Custom CRD adds operational overhead &amp; RBAC complexity</li>
+        <li>Volume attachment still goes through original CSI driver on worker node</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3 style="color:var(--rh-blue);">2. Direct Remote FS Mounting</h3>
+      <p style="font-size:0.95em;">Mount object storage (S3 via Mountpoint, Azure Blob via BlobFuse) directly inside the container using FUSE.</p>
+      <ul>
+        <li>Object storage only &mdash; not block; no databases or transactional workloads</li>
+        <li>Requires privileged containers (<code>securityContext.privileged: true</code>)</li>
+        <li>Application must manage mounting &mdash; not transparent (no standard PVC)</li>
+        <li>Cloud-specific &mdash; separate tooling per provider</li>
+      </ul>
+    </div>
+  </div>
+  <div class="highlight-box">
+    <p><strong>Gap:</strong> No CSI-native, transparent block storage for Peer Pods &mdash; that's what our solution fills.</p>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 4: Solution Overview ==================== -->
+<div class="slide slide--diagram" id="slide-4">
+  <h2>Solution: End-to-End Architecture</h2>
+  <div class="arch-diagram">
+    <div class="arch-section">
+      <div class="arch-section-label">Worker Node (Host)</div>
+      <div class="arch-row">
+        <div class="arch-box arch-box--k8s">Kubernetes<br>PVC / StorageClass</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="arch-box arch-box--csi">CSI Block Driver<br><small>caa-csi-block-driver</small></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="arch-box arch-box--file">mountInfo.json<br><small>/run/kata-containers/<br>shared/direct-volumes/</small></div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="arch-row">
+        <div class="arch-box arch-box--caa">CAA Proxy<br><small>reads mountInfo.json &rarr;<br>builds cloud_volumes annotation</small></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="arch-box arch-box--cloud">Cloud Provider<br><small>attaches disk to PodVM<br>with LUN indexing</small></div>
+      </div>
+    </div>
+    <div class="arch-arrow">&darr;</div>
+    <div class="arch-label">Forwards annotation &amp; attaches cloud disk</div>
+    <div class="arch-section">
+      <div class="arch-section-label">PodVM (Guest)</div>
+      <div class="arch-row">
+        <div class="arch-box arch-box--vm">Interceptor<br><small>parse cloud_volumes &rarr;<br>detect &rarr; format &rarr; mount</small></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="arch-box arch-box--k8s">Container<br><small>sees /mnt/data<br>with persistent volume</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="highlight-box">
+    <p><strong>Two repositories:</strong> <code>caa-csi-block-driver</code> (CSI driver, separate repo) + <code>cloud-api-adaptor</code> PR #3037 (CAA proxy, interceptor, Azure provider changes).</p>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 5: CSI Block Driver ==================== -->
+<div class="slide slide--content" id="slide-5">
+  <h2>Component 1: CSI Block Driver</h2>
+  <p><span class="badge badge--teal">caa-csi-block-driver</span> <span class="badge badge--dark">Separate Repository</span></p>
+  <div class="two-col" style="margin-top:15px;">
+    <div class="col">
+      <h3>What it does</h3>
+      <ul>
+        <li>Standalone Kubernetes CSI driver</li>
+        <li>Implements <code>NodePublishVolume</code> / <code>NodeUnpublishVolume</code></li>
+        <li>Writes <code>mountInfo.json</code> with disk metadata to the shared Kata direct-volumes directory</li>
+        <li>Does <strong>not</strong> perform actual mount &mdash; delegates to PodVM</li>
+      </ul>
+      <h3>Plugin Pattern</h3>
+      <ul>
+        <li>Self-registration via <code>init()</code></li>
+        <li>4-method <code>BlockVolumeProvider</code> interface</li>
+        <li>Add GCP tomorrow: 1 file, 4 methods, 1 import</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Providers Implemented</h3>
+      <table class="provider-table">
+        <tr><th>Provider</th><th>Volume Type</th><th>Use Case</th></tr>
+        <tr><td>Libvirt</td><td>Raw disk files</td><td>Dev/test (QEMU/KVM)</td></tr>
+        <tr><td>AWS EBS</td><td>EBS volumes (gp3)</td><td>Production (EKS)</td></tr>
+        <tr><td>Azure Disk</td><td>Managed Disks</td><td>Production (AKS)</td></tr>
+      </table>
+      <h3>Stats</h3>
+      <ul>
+        <li>~800 LOC, 11 files, 3 providers</li>
+        <li>CSI conformance via <code>csi-sanity</code> in CI</li>
+        <li>Helm chart &amp; GitHub Actions pipeline</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 6: Kata Direct Volumes ==================== -->
+<div class="slide slide--content" id="slide-6">
+  <h2>How It Works: Kata Direct Volumes &amp; mountInfo.json</h2>
+  <div class="two-col">
+    <div class="col">
+      <h3>The Existing Kata Protocol</h3>
+      <ul>
+        <li>Kata Containers defines a "direct volume" protocol &mdash; any process can write a <code>mountInfo.json</code> file to a well-known path</li>
+        <li>Path: <code>/run/kata-containers/shared/direct-volumes/&lt;base64(targetPath)&gt;/mountInfo.json</code></li>
+        <li>Originally built for block device passthrough (Databricks, Ant Group use cases)</li>
+      </ul>
+      <h3>What we added to CAA</h3>
+      <ul>
+        <li><code>GetCSIVolumesForPod</code> in <code>pkg/util/cloud.go</code> scans this directory</li>
+        <li>Filters by pod UID, reads disk ID &amp; fs type</li>
+        <li>Proxy builds <code>cloud_volumes</code> annotation for PodVM</li>
+        <li>Interceptor handles device detection &amp; mounting inside PodVM</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>mountInfo.json Contents</h3>
+      <div class="code-block">
+        <span class="comment">// Written by caa-csi-block-driver</span><br>
+        {<br>
+        &nbsp;&nbsp;<span class="string">"volume-type"</span>: <span class="string">"directvol"</span>,<br>
+        &nbsp;&nbsp;<span class="string">"device"</span>: <span class="string">"/subscriptions/.../disks/csi-vol-pvc-abc"</span>,<br>
+        &nbsp;&nbsp;<span class="string">"fstype"</span>: <span class="string">"ext4"</span>,<br>
+        &nbsp;&nbsp;<span class="string">"metadata"</span>: {<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"cloud-provider"</span>: <span class="string">"azure"</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"cloud-volume-id"</span>: <span class="string">"pvc-abc123"</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"cloud-volume-path"</span>: <span class="string">"/subscriptions/.../disks/csi-vol-pvc-abc"</span><br>
+        &nbsp;&nbsp;}<br>
+        }
+      </div>
+      <div class="highlight-box">
+        <p><strong>Key:</strong> The CSI driver writes metadata; the worker node <em>never</em> mounts the volume. Actual mount happens inside the PodVM.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 7: CAA Proxy ==================== -->
+<div class="slide slide--content" id="slide-7">
+  <h2>Component 2: CAA Proxy</h2>
+  <p><span class="badge badge--red">pkg/adaptor/proxy/service.go</span> <span class="badge badge--blue">PR #3037</span></p>
+  <ul style="margin:15px 0;">
+    <li>Scans <code>kataDirectVolumesDir</code> in <strong>canonical order</strong> for <code>mountInfo.json</code> files</li>
+    <li>Filters volumes by <strong>pod UID</strong> (<code>io.kubernetes.cri.sandbox-uid</code>) &mdash; prevents cross-pod volume leakage</li>
+    <li>Reads <code>disk_id</code> and <code>fs_type</code> from <code>mountInfo.json</code></li>
+    <li>Assigns <strong>deterministic LUN indices</strong> matching cloud provider disk attachment order</li>
+    <li>Skipped volumes (no OCI mount) still increment LUN index &mdash; ensures consistency</li>
+    <li>Constructs <code>cloud_volumes</code> annotation and forwards to PodVM agent</li>
+  </ul>
+  <div class="code-block">
+    <span class="comment">// cloud_volumes annotation set by the proxy</span><br>
+    {<br>
+    &nbsp;&nbsp;<span class="string">"vol-0"</span>: {<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"mount_point"</span>: <span class="string">"/mnt/data"</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"fs_type"</span>: <span class="string">"ext4"</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"lun"</span>: <span class="string">"0"</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"disk_id"</span>: <span class="string">"/subscriptions/.../disks/csi-vol-pvc-abc123"</span><br>
+    &nbsp;&nbsp;}<br>
+    }
+  </div>
+  <div class="highlight-box">
+    <p><strong>Key design:</strong> Canonical directory scan order ensures LUN indices match the order used when attaching disks, preventing mount-to-wrong-disk issues.</p>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 8: PodVM Interceptor ==================== -->
+<div class="slide slide--content" id="slide-8">
+  <h2>Component 3: PodVM Interceptor</h2>
+  <p><span class="badge badge--red">pkg/forwarder/interceptor/interceptor.go</span> <span class="badge badge--blue">PR #3037</span></p>
+  <div class="flow" style="margin:18px 0;">
+    <div class="flow-step" style="background:var(--rh-blue);">Parse<br>cloud_volumes</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-teal);">Detect Cloud<br>Provider</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-purple);">Find Device<br>by LUN</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-orange); color:var(--rh-black);">Wait for<br>Device</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-red);">Format &amp;<br>Mount</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-gray-dark);">Bind-mount<br>into Container</div>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <h3>Provider-Aware Device Detection</h3>
+      <ul>
+        <li><strong>Azure</strong> &mdash; <code>/dev/disk/azure/data/by-lun/N</code>, Hyper-V by-path symlinks, SCSI host 0 filtering</li>
+        <li><strong>AWS</strong> &mdash; <code>/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_*</code></li>
+        <li><strong>Libvirt</strong> &mdash; <code>/dev/vd[b-z]</code> virtio devices</li>
+        <li><strong>Fallback</strong> &mdash; SCSI HCTL sysfs LUN matching</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Safe formatAndMount</h3>
+      <ul>
+        <li>Check if already mounted (idempotent)</li>
+        <li>Try mount first &mdash; preserves existing data</li>
+        <li><code>blkid</code> check with retries</li>
+        <li>Only <code>mkfs</code> on genuinely empty disks</li>
+        <li>Never reformats existing filesystems</li>
+        <li>Filesystem type allowlist (ext4, ext3, xfs)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 9: Azure Provider ==================== -->
+<div class="slide slide--content" id="slide-9">
+  <h2>Component 4: Azure Provider</h2>
+  <p><span class="badge badge--purple">cloud-providers/azure/provider.go</span> <span class="badge badge--blue">PR #3037</span></p>
+  <ul style="margin:15px 0;">
+    <li>CSI volumes passed to <code>getVMParameters</code> as part of instance spec</li>
+    <li>Each volume attached as an Azure <strong>Managed Disk data disk</strong> during VM creation</li>
+    <li>LUN assignment matches the canonical index from proxy annotation</li>
+    <li>Disk delete option set to <strong>Detach</strong> &mdash; disk survives VM deletion for persistence</li>
+  </ul>
+  <div class="code-block">
+    <span class="comment">// Azure data disk attachment in VM creation</span><br>
+    <span class="keyword">for</span> i, vol := <span class="keyword">range</span> csiVolumes {<br>
+    &nbsp;&nbsp;dataDisks = <span class="cmd">append</span>(dataDisks, &amp;armcompute.DataDisk{<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Lun:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to.Ptr(<span class="keyword">int32</span>(i)),<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;CreateOption: Attach,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;DeleteOption: <span class="string">Detach</span>,&nbsp;&nbsp;<span class="comment">// disk survives VM deletion</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;ManagedDisk:&nbsp;&nbsp;&amp;{ ID: to.Ptr(vol.DiskID) },<br>
+    &nbsp;&nbsp;})<br>
+    }
+  </div>
+  <div class="highlight-box">
+    <p><strong>Persistence model:</strong> Azure Managed Disk outlives the PodVM. When a new pod claims the same PVC, a new VM is created and the <em>same disk</em> is re-attached &mdash; data survives across pod restarts.</p>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 10: Call Flow ==================== -->
+<div class="slide slide--diagram" id="slide-10">
+  <h2>End-to-End Call Flow</h2>
+  <div style="display:flex; gap:30px; margin-top:10px;">
+    <div style="flex:1;">
+      <h3 style="color:var(--rh-teal); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;">Volume Provisioning</h3>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">1</span><span style="font-size:0.95em;">PVC created with <code>caa-block-azure</code> StorageClass</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">2</span><span style="font-size:0.95em;">External provisioner calls CSI driver <code>CreateVolume</code></span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">3</span><span style="font-size:0.95em;">CSI driver provisions Azure Managed Disk</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">4</span><span style="font-size:0.95em;">PV created and bound to PVC</span></div>
+      </div>
+      <h3 style="color:var(--rh-blue); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;">Node Publish</h3>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-blue);">5</span><span style="font-size:0.95em;">Pod scheduled &rarr; kubelet calls <code>NodePublishVolume</code></span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-blue);">6</span><span style="font-size:0.95em;">CSI driver writes <code>mountInfo.json</code> (no mount on host)</span></div>
+      </div>
+    </div>
+    <div style="flex:1;">
+      <h3 style="color:var(--rh-red); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;">CAA &amp; PodVM</h3>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">7</span><span style="font-size:0.95em;">CAA proxy reads <code>mountInfo.json</code>, builds <code>cloud_volumes</code></span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">8</span><span style="font-size:0.95em;">Azure provider attaches Managed Disk to PodVM (LUN N)</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">9</span><span style="font-size:0.95em;">PodVM boots &rarr; annotation forwarded to interceptor</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">10</span><span style="font-size:0.95em;">Interceptor detects device by LUN via sysfs/by-path</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">11</span><span style="font-size:0.95em;">Format (if empty) &rarr; mount &rarr; bind-mount into container</span></div>
+      </div>
+      <h3 style="color:var(--rh-purple); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;">Result</h3>
+      <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-purple);">12</span><span style="font-size:0.95em;">Container sees <code>/mnt/data</code> &mdash; persistent block volume</span></div>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 11: Security ==================== -->
+<div class="slide slide--content" id="slide-11">
+  <h2>Security &amp; Safety</h2>
+  <div class="security-grid">
+    <div class="security-card">
+      <h4>Pod-Level Volume Isolation</h4>
+      <p>Volumes filtered by <code>io.kubernetes.cri.sandbox-uid</code> &mdash; a PodVM can never access another pod's managed disk.</p>
+    </div>
+    <div class="security-card">
+      <h4>Path Traversal Prevention</h4>
+      <p>Volume names sanitized with <code>filepath.Base()</code> &mdash; names like <code>../../etc</code> are rejected before mount point construction.</p>
+    </div>
+    <div class="security-card">
+      <h4>Filesystem Type Allowlist</h4>
+      <p>Only <code>ext4</code>, <code>ext3</code>, <code>xfs</code> allowed. Prevents arbitrary command execution via <code>mkfs.&lt;attacker-input&gt;</code>.</p>
+    </div>
+    <div class="security-card">
+      <h4>Idempotent Mounting</h4>
+      <p>Checks <code>mountinfo.Mounted()</code> before format/mount. Prevents double-mount errors and accidental reformatting.</p>
+    </div>
+    <div class="security-card">
+      <h4>Safe Format Logic</h4>
+      <p>Mount-first approach: tries mounting before formatting. Existing data is never overwritten. Only truly empty disks get <code>mkfs</code>.</p>
+    </div>
+    <div class="security-card">
+      <h4>Integer Bounds Checking</h4>
+      <p>Explicit bounds checks before <code>int</code> to <code>int32</code> narrowing conversions. Prevents overflow in LUN indexing (CodeQL validated).</p>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 12: Demo ==================== -->
+<div class="slide slide--dark" id="slide-12">
+  <h2>Demo: End-to-End on AKS</h2>
+  <div class="flow" style="margin:25px 0;">
+    <div class="flow-step" style="background:var(--rh-blue);">Create PVC</div>
+    <span class="flow-arrow" style="color:rgba(255,255,255,0.3);">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-teal);">Writer Pod</div>
+    <span class="flow-arrow" style="color:rgba(255,255,255,0.3);">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-red);">Delete Pod</div>
+    <span class="flow-arrow" style="color:rgba(255,255,255,0.3);">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-purple);">Reader Pod</div>
+    <span class="flow-arrow" style="color:rgba(255,255,255,0.3);">&rarr;</span>
+    <div class="flow-step" style="background:var(--rh-gray-dark);">Data Persists &#10003;</div>
+  </div>
+  <div class="code-block" style="margin:15px 0;">
+    <span class="comment"># 1. Create PVC with caa-block-azure StorageClass</span><br>
+    <span class="cmd">$ kubectl apply -f</span> pvc.yaml<br><br>
+    <span class="comment"># 2. Deploy writer pod (peer pod with volume mount)</span><br>
+    <span class="cmd">$ kubectl apply -f</span> writer-pod.yaml<br>
+    <span class="cmd">$ kubectl exec</span> demo-writer -- sh -c <span class="string">'echo "hello from peer pod" > /mnt/data/demo.txt'</span><br><br>
+    <span class="comment"># 3. Delete writer pod — PodVM is destroyed, disk detached but persists</span><br>
+    <span class="cmd">$ kubectl delete pod</span> demo-writer<br><br>
+    <span class="comment"># 4. Deploy reader pod — new PodVM created, same disk re-attached</span><br>
+    <span class="cmd">$ kubectl apply -f</span> reader-pod.yaml<br>
+    <span class="cmd">$ kubectl exec</span> demo-reader -- cat /mnt/data/demo.txt<br>
+    <span class="string">hello from peer pod</span>&nbsp;&nbsp;<span class="comment"># &larr; Data persisted!</span>
+  </div>
+  <p style="text-align:center; color:rgba(255,255,255,0.5); font-size:0.9em; margin-top:12px;">
+    Tested on AKS with Standard_D2as_v5 VMs &nbsp;|&nbsp; Azure Managed Disks &nbsp;|&nbsp; ext4 &nbsp;|&nbsp; Kata Peer Pods
+  </p>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 13: Unit Tests ==================== -->
+<div class="slide slide--content" id="slide-13">
+  <h2>Testing</h2>
+  <div class="two-col">
+    <div class="col">
+      <h3>CSI Driver Tests</h3>
+      <ul>
+        <li><code>csi-sanity</code> v5.0.0 conformance suite</li>
+        <li>Runs automatically via GitHub Actions on every push &amp; PR</li>
+        <li>Covers Identity, Controller, and Node services</li>
+        <li>All three providers tested</li>
+      </ul>
+      <h3>CAA Unit Tests (PR #3037)</h3>
+      <ul>
+        <li><strong>13 tests</strong> for <code>GetCSIVolumesForPod</code></li>
+        <li>Volume scanning, pod UID filtering, edge cases</li>
+        <li>Invalid JSON, missing disk IDs, non-CSI volumes</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Proxy Cloud Volumes Tests</h3>
+      <ul>
+        <li><strong>9 tests</strong> for <code>cloud_volumes</code> annotation builder</li>
+        <li>Single &amp; multiple volumes</li>
+        <li>fs_type from mountInfo, fallback to ext4</li>
+        <li>Cross-pod isolation (other pods' volumes skipped)</li>
+        <li>Invalid mountInfo.json handling</li>
+      </ul>
+      <h3>LUN Index Consistency</h3>
+      <ul>
+        <li>Dedicated test for Pradipta's scenario: volume with no OCI mount</li>
+        <li>Verifies LUN index still increments (vol-c gets LUN 2, not 1)</li>
+        <li>Prevents wrong-disk attachment</li>
+      </ul>
+    </div>
+  </div>
+  <div class="highlight-box">
+    <p><strong>Total:</strong> 22 unit tests across <code>cloud_csi_test.go</code> and <code>cloud_volumes_test.go</code>, plus CSI conformance suite. All passing.</p>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 14: PR Status ==================== -->
+<div class="slide slide--content" id="slide-14">
+  <h2>Pull Requests &amp; Current Status</h2>
+  <table class="pr-table">
+    <tr>
+      <th>PR</th>
+      <th>Repository</th>
+      <th>Description</th>
+      <th>Status</th>
+    </tr>
+    <tr>
+      <td><strong>#3037</strong></td>
+      <td>confidential-containers/<br>cloud-api-adaptor</td>
+      <td>Cloud-native volume passthrough &mdash; CAA proxy, interceptor, Azure provider + unit tests (5 commits)</td>
+      <td><span class="status-review">Under Review</span></td>
+    </tr>
+    <tr>
+      <td><strong>#11</strong></td>
+      <td>confidential-devhub/<br>caa-csi-block-driver</td>
+      <td>Initial CSI block driver implementation</td>
+      <td><span class="status-merged">Merged &#10003;</span></td>
+    </tr>
+    <tr>
+      <td><strong>#12</strong></td>
+      <td>confidential-devhub/<br>caa-csi-block-driver</td>
+      <td>Rename from cloud-csi-adaptor to caa-csi-block-driver</td>
+      <td><span class="status-merged">Merged &#10003;</span></td>
+    </tr>
+  </table>
+  <div class="two-col" style="margin-top:20px;">
+    <div class="col">
+      <h3>Completed</h3>
+      <ul>
+        <li>All review feedback addressed (Copilot + maintainer)</li>
+        <li>CodeQL and DCO checks passing</li>
+        <li>Unit tests added (22 tests)</li>
+        <li>End-to-end tested on AKS</li>
+        <li>CSI driver repo with CI/CD pipeline</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Future Work</h3>
+      <ul>
+        <li>AWS end-to-end testing (NVMe device detection via <code>nvme id-ctrl</code>)</li>
+        <li>Libvirt end-to-end testing</li>
+        <li>Encrypted volumes with CDH (LUKS2 + KBS attestation)</li>
+        <li>Upstream CSI driver to confidential-containers org</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 15: Summary ==================== -->
+<div class="slide slide--dark" id="slide-15">
+  <h2>Summary</h2>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:15px;">
+    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+      <h3 style="color:var(--rh-teal); margin-top:0;">CSI Block Driver</h3>
+      <ul>
+        <li>Pluggable CSI driver bridging K8s storage and Peer Pods</li>
+        <li>3 cloud providers: Libvirt, AWS EBS, Azure Managed Disks</li>
+        <li>Clean, minimal codebase (~800 LOC, 11 files)</li>
+        <li>CSI conformance tested, Helm chart, GitHub Actions CI</li>
+      </ul>
+    </div>
+    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+      <h3 style="color:var(--rh-red); margin-top:0;">CAA Integration (PR #3037)</h3>
+      <ul>
+        <li>Proxy builds <code>cloud_volumes</code> annotation with pod UID filtering</li>
+        <li>Interceptor: provider-aware device detection + safe format/mount</li>
+        <li>Azure provider: Managed Disk attach with LUN indexing</li>
+        <li>22 unit tests covering all critical paths</li>
+      </ul>
+    </div>
+    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+      <h3 style="color:var(--rh-purple); margin-top:0;">Security</h3>
+      <ul>
+        <li>Pod-level volume isolation via UID filtering</li>
+        <li>Path traversal prevention, fs type allowlist</li>
+        <li>Mount-first (never reformats existing data)</li>
+        <li>Integer bounds checking (CodeQL validated)</li>
+      </ul>
+    </div>
+    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+      <h3 style="color:var(--rh-blue); margin-top:0;">Proven</h3>
+      <ul>
+        <li>End-to-end demo on AKS &mdash; data persists across pod restarts</li>
+        <li>Writer pod &rarr; delete &rarr; reader pod &rarr; data intact</li>
+        <li>Standard K8s PVC/StorageClass workflow &mdash; zero app changes</li>
+        <li>Transparent to the workload</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
+</div>
+
+<!-- ==================== SLIDE 16: Thank You ==================== -->
+<div class="slide slide--closing" id="slide-16">
+  <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center;">
+    <div style="margin-bottom:30px;">
+      <svg width="100" height="34" viewBox="0 0 613 145" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M127.47 83.49c12.51 0 30.61-2.58 30.61-17.46a14 14 0 0 0-.31-3.42l-7.45-32.36c-1.72-7.12-3.23-10.35-15.73-16.6C124.89 8.69 103.76.5 97.51.5 91.69.5 90 8 83.06 8c-6.68 0-11.64-5.6-17.89-5.6-6 0-9.91 4.09-12.93 12.5 0 0-8.41 23.72-9.49 27.16A6.43 6.43 0 0 0 42.53 44c0 9.22 36.3 39.45 84.94 39.45M160 72.07c1.73 8.19 1.73 9.05 1.73 10.13 0 14-15.74 21.77-36.43 21.77C78.54 104 37.58 76.6 37.58 58.49a18.45 18.45 0 0 1 1.51-7.33C22.27 52 .5 55 .5 74.22c0 31.48 74.59 70.28 133.65 70.28 45.28 0 56.7-20.48 56.7-36.65 0-12.72-11-27.16-30.83-35.78" fill="white"/>
+      </svg>
+    </div>
+    <h1 style="font-size:3.8em; letter-spacing:-2px; margin-bottom:8px; color:white;">Thank You</h1>
+    <div style="width:80px; height:4px; background:white; margin:12px 0 22px 0; border-radius:2px; opacity:0.6;"></div>
+    <p style="font-size:1.3em; color:rgba(255,255,255,0.85); font-weight:400; margin-bottom:35px; font-family:'Red Hat Display',sans-serif;">
+      Questions &amp; Discussion
+    </p>
+    <div style="display:flex; gap:20px; margin-bottom:30px; flex-wrap:wrap; justify-content:center;">
+      <div style="background:rgba(255,255,255,0.12); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:16px 24px; min-width:260px; text-align:left;">
+        <div style="font-size:0.65em; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,0.5); margin-bottom:6px;">CAA Pull Request</div>
+        <div style="font-family:'Red Hat Mono',monospace; font-size:0.85em; color:rgba(255,255,255,0.9);">
+          confidential-containers/<br>cloud-api-adaptor <span style="background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:10px; font-size:0.85em; margin-left:5px;">#3037</span>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.12); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:16px 24px; min-width:260px; text-align:left;">
+        <div style="font-size:0.65em; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,0.5); margin-bottom:6px;">CSI Driver</div>
+        <div style="font-family:'Red Hat Mono',monospace; font-size:0.85em; color:rgba(255,255,255,0.9);">
+          confidential-devhub/<br>caa-csi-block-driver <span style="background:rgba(0,149,150,0.5); padding:2px 10px; border-radius:10px; font-size:0.85em; margin-left:5px;">merged</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px; background:rgba(0,0,0,0.2); border-radius:50px; padding:10px 28px 10px 14px;">
+      <div style="width:40px; height:40px; background:var(--rh-red); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:1em; font-family:'Red Hat Display',sans-serif; color:white;">MA</div>
+      <div style="text-align:left;">
+        <div style="font-size:0.95em; font-weight:600; color:white;">Mohammed Adnan</div>
+        <div style="font-size:0.75em; color:rgba(255,255,255,0.5);">Software Engineering Intern &nbsp;&middot;&nbsp; Confidential Containers Team</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="logo" style="color:rgba(255,255,255,0.5);">Red Hat</span>
+    <span style="color:rgba(255,255,255,0.3);">Peer Pods Community</span>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+  <button onclick="prevSlide()" aria-label="Previous slide">&larr;</button>
+  <button onclick="nextSlide()" aria-label="Next slide">&rarr;</button>
+</div>
+<div class="slide-counter" id="counter">1 / 16</div>
+
+<script>
+  let current = 1;
+  const total = 16;
+
+  function showSlide(n) {
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    document.getElementById('slide-' + n).classList.add('active');
+    document.getElementById('counter').textContent = n + ' / ' + total;
+    const bg = document.getElementById('slide-' + n).classList;
+    const counter = document.getElementById('counter');
+    if (bg.contains('slide--content') || bg.contains('slide--diagram')) {
+      counter.style.color = 'rgba(0,0,0,0.3)';
+    } else {
+      counter.style.color = 'rgba(255,255,255,0.4)';
+    }
+  }
+
+  function nextSlide() { if (current < total) { current++; showSlide(current); } }
+  function prevSlide() { if (current > 1) { current--; showSlide(current); } }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+    if (e.key === 'Home') { current = 1; showSlide(current); }
+    if (e.key === 'End') { current = total; showSlide(current); }
+  });
+</script>
+
+</body>
+</html>
