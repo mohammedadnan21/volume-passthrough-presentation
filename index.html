@@ -513,7 +513,7 @@
     <h1 style="font-size:3.2em; line-height:1.08; margin-bottom:22px; letter-spacing:-1px;">Cloud-Native<br>Volume<br>Passthrough<br><span style="color:var(--rh-red);">for Peer Pods</span></h1>
     <div style="width:60px; height:4px; background:var(--rh-red); margin-bottom:22px; border-radius:2px;"></div>
     <p style="font-size:1.1em; color:rgba(255,255,255,0.6); line-height:1.5; margin-bottom:30px; max-width:420px;">
-      Enabling persistent block storage for confidential container workloads across cloud providers
+      CSI based persistent storage support for peer-pods
     </p>
     <div style="display:flex; flex-direction:column; gap:6px;">
       <span style="font-size:1.1em; color:rgba(255,255,255,0.9); font-weight:600;">Mohammed Adnan</span>
@@ -543,69 +543,43 @@
   </div>
 </div>
 
-<!-- ==================== SLIDE 2: Problem ==================== -->
+<!-- ==================== SLIDE 2: Gaps with Existing Solutions ==================== -->
 <div class="slide slide--content" id="slide-2">
-  <h2>The Problem</h2>
-  <p style="font-size:1.2em; margin-bottom:20px;">Peer Pods today <strong style="color:var(--rh-red)">cannot use persistent storage</strong>. When a PodVM is destroyed, all data is lost.</p>
+  <h2>Gaps with Existing Persistent Storage Solutions for Peer-Pods</h2>
   <div class="two-col">
     <div class="col">
-      <h3>What users need</h3>
-      <ul>
-        <li>Run stateful workloads &mdash; databases, message queues, ML pipelines</li>
-        <li>Data must survive pod restarts and VM teardowns</li>
-        <li>Standard Kubernetes PVC / StorageClass workflow</li>
-        <li>Works across cloud providers (Azure, AWS, etc.)</li>
-      </ul>
-    </div>
-    <div class="col">
-      <h3>What was missing</h3>
-      <ul>
-        <li>No CSI driver aware of the Peer Pods architecture</li>
-        <li>No mechanism to attach cloud disks to PodVMs</li>
-        <li>No device detection inside the guest VM</li>
-        <li>No safe mount/format logic for guest volumes</li>
-      </ul>
-    </div>
-  </div>
-  <div class="highlight-box">
-    <p><strong>Goal:</strong> Enable CSI-provisioned block volumes to be attached to PodVMs as cloud-managed disks and mounted inside the guest, with data persisting across pod lifecycle.</p>
-  </div>
-  <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
-</div>
-
-<!-- ==================== SLIDE 3: Existing Approaches ==================== -->
-<div class="slide slide--content" id="slide-3">
-  <h2>Existing Approaches &amp; Their Limitations</h2>
-  <div class="two-col">
-    <div class="col">
-      <h3 style="color:var(--rh-blue);">1. CSI-Wrapper</h3>
-      <p style="font-size:0.95em;">Wraps existing CSI drivers (e.g. EBS CSI, Azure Disk CSI) by intercepting gRPC calls via a proxy. Uses a CRD (<code>PeerpodVolume</code>) to coordinate attachment.</p>
+      <h3 style="color:var(--rh-blue);">CSI-Wrapper Approach</h3>
+      <p style="font-size:0.9em;">Wraps existing CSI drivers by intercepting gRPC calls via a proxy. Uses a CRD (<code>PeerpodVolume</code>) to coordinate attachment.</p>
       <ul>
         <li>High complexity &mdash; 3 wrapper binaries per CSI driver</li>
         <li>Tight coupling &mdash; must re-deploy for every CSI driver</li>
         <li>Custom CRD adds operational overhead &amp; RBAC complexity</li>
-        <li>Volume attachment still goes through original CSI driver on worker node</li>
+        <li>If the driver changes its NodeID format, the wrapper must be updated</li>
+        <li>Some CSI drivers talk to the K8s API server and cache nodes/PVs &mdash; confused by VMs without Node objects</li>
+        <li>Patching existing CSI drivers impacts supportability and maintainability</li>
+        <li>In managed services (e.g. OpenShift), patching CSI drivers is not possible as they are managed entities</li>
       </ul>
     </div>
     <div class="col">
-      <h3 style="color:var(--rh-blue);">2. Direct Remote FS Mounting</h3>
-      <p style="font-size:0.95em;">Mount object storage (S3 via Mountpoint, Azure Blob via BlobFuse) directly inside the container using FUSE.</p>
+      <h3 style="color:var(--rh-blue);">Direct Remote FS Mounting</h3>
+      <p style="font-size:0.9em;">Mount object storage (S3 via Mountpoint, Azure Blob via BlobFuse) directly inside the container using FUSE.</p>
       <ul>
         <li>Object storage only &mdash; not block; no databases or transactional workloads</li>
         <li>Requires privileged containers (<code>securityContext.privileged: true</code>)</li>
         <li>Application must manage mounting &mdash; not transparent (no standard PVC)</li>
         <li>Cloud-specific &mdash; separate tooling per provider</li>
       </ul>
+      <div class="highlight-box" style="margin-top:18px;">
+        <p><strong>Gap:</strong> No CSI-native, transparent block storage for Peer Pods &mdash; that's what our solution fills.</p>
+      </div>
     </div>
   </div>
-  <div class="highlight-box">
-    <p><strong>Gap:</strong> No CSI-native, transparent block storage for Peer Pods &mdash; that's what our solution fills.</p>
-  </div>
+  <p style="font-size:0.8em; color:var(--rh-gray-mid); margin-top:8px;">Ref: <a href="https://github.com/confidential-containers/cloud-api-adaptor/issues/1374" style="color:var(--rh-blue);">github.com/confidential-containers/cloud-api-adaptor/issues/1374</a></p>
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 4: Solution Overview ==================== -->
-<div class="slide slide--diagram" id="slide-4">
+<!-- ==================== SLIDE 3: Solution Overview ==================== -->
+<div class="slide slide--diagram" id="slide-3">
   <h2>Solution: End-to-End Architecture</h2>
   <div class="arch-diagram">
     <div class="arch-section">
@@ -641,8 +615,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 5: CSI Block Driver ==================== -->
-<div class="slide slide--content" id="slide-5">
+<!-- ==================== SLIDE 4: CSI Block Driver ==================== -->
+<div class="slide slide--content" id="slide-4">
   <h2>Component 1: CSI Block Driver</h2>
   <p><span class="badge badge--teal">caa-csi-block-driver</span> <span class="badge badge--dark">Separate Repository</span></p>
   <div class="two-col" style="margin-top:15px;">
@@ -680,8 +654,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 6: Kata Direct Volumes ==================== -->
-<div class="slide slide--content" id="slide-6">
+<!-- ==================== SLIDE 5: Kata Direct Volumes ==================== -->
+<div class="slide slide--content" id="slide-5">
   <h2>How It Works: Kata Direct Volumes &amp; mountInfo.json</h2>
   <div class="two-col">
     <div class="col">
@@ -722,8 +696,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 7: CAA Proxy ==================== -->
-<div class="slide slide--content" id="slide-7">
+<!-- ==================== SLIDE 6: CAA Proxy ==================== -->
+<div class="slide slide--content" id="slide-6">
   <h2>Component 2: CAA Proxy</h2>
   <p><span class="badge badge--red">pkg/adaptor/proxy/service.go</span> <span class="badge badge--blue">PR #3037</span></p>
   <ul style="margin:15px 0;">
@@ -751,8 +725,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 8: PodVM Interceptor ==================== -->
-<div class="slide slide--content" id="slide-8">
+<!-- ==================== SLIDE 7: PodVM Interceptor ==================== -->
+<div class="slide slide--content" id="slide-7">
   <h2>Component 3: PodVM Interceptor</h2>
   <p><span class="badge badge--red">pkg/forwarder/interceptor/interceptor.go</span> <span class="badge badge--blue">PR #3037</span></p>
   <div class="flow" style="margin:18px 0;">
@@ -793,8 +767,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 9: Azure Provider ==================== -->
-<div class="slide slide--content" id="slide-9">
+<!-- ==================== SLIDE 8: Azure Provider ==================== -->
+<div class="slide slide--content" id="slide-8">
   <h2>Component 4: Azure Provider</h2>
   <p><span class="badge badge--purple">cloud-providers/azure/provider.go</span> <span class="badge badge--blue">PR #3037</span></p>
   <ul style="margin:15px 0;">
@@ -820,8 +794,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 10: Call Flow ==================== -->
-<div class="slide slide--diagram" id="slide-10">
+<!-- ==================== SLIDE 9: Call Flow ==================== -->
+<div class="slide slide--diagram" id="slide-9">
   <h2>End-to-End Call Flow</h2>
   <div style="display:flex; gap:30px; margin-top:10px;">
     <div style="flex:1;">
@@ -854,8 +828,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 11: Security ==================== -->
-<div class="slide slide--content" id="slide-11">
+<!-- ==================== SLIDE 10: Security ==================== -->
+<div class="slide slide--content" id="slide-10">
   <h2>Security &amp; Safety</h2>
   <div class="security-grid">
     <div class="security-card">
@@ -886,8 +860,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 12: Demo ==================== -->
-<div class="slide slide--dark" id="slide-12">
+<!-- ==================== SLIDE 11: Demo ==================== -->
+<div class="slide slide--dark" id="slide-11">
   <h2>Demo: End-to-End on AKS</h2>
   <div class="flow" style="margin:25px 0;">
     <div class="flow-step" style="background:var(--rh-blue);">Create PVC</div>
@@ -919,8 +893,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 13: Unit Tests ==================== -->
-<div class="slide slide--content" id="slide-13">
+<!-- ==================== SLIDE 12: Unit Tests ==================== -->
+<div class="slide slide--content" id="slide-12">
   <h2>Testing</h2>
   <div class="two-col">
     <div class="col">
@@ -961,8 +935,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 14: PR Status ==================== -->
-<div class="slide slide--content" id="slide-14">
+<!-- ==================== SLIDE 13: PR Status ==================== -->
+<div class="slide slide--content" id="slide-13">
   <h2>Pull Requests &amp; Current Status</h2>
   <table class="pr-table">
     <tr>
@@ -1014,8 +988,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 15: Summary ==================== -->
-<div class="slide slide--dark" id="slide-15">
+<!-- ==================== SLIDE 14: Summary ==================== -->
+<div class="slide slide--dark" id="slide-14">
   <h2>Summary</h2>
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:15px;">
     <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
@@ -1058,8 +1032,8 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 16: Thank You ==================== -->
-<div class="slide slide--closing" id="slide-16">
+<!-- ==================== SLIDE 15: Thank You ==================== -->
+<div class="slide slide--closing" id="slide-15">
   <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center;">
     <div style="margin-bottom:30px;">
       <svg width="100" height="34" viewBox="0 0 613 145" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1104,11 +1078,11 @@
   <button onclick="prevSlide()" aria-label="Previous slide">&larr;</button>
   <button onclick="nextSlide()" aria-label="Next slide">&rarr;</button>
 </div>
-<div class="slide-counter" id="counter">1 / 16</div>
+<div class="slide-counter" id="counter">1 / 15</div>
 
 <script>
   let current = 1;
-  const total = 16;
+  const total = 15;
 
   function showSlide(n) {
     document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
