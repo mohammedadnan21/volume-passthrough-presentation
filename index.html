@@ -610,7 +610,7 @@
     </div>
   </div>
   <div class="highlight-box">
-    <p><strong>Two repositories:</strong> <code>caa-csi-block-driver</code> (CSI driver, separate repo) + <code>cloud-api-adaptor</code> PR #3037 (CAA proxy, interceptor, Azure provider changes).</p>
+    <p><strong>Two repositories:</strong> <code>caa-csi-block-driver</code> (CSI driver, separate repo) + <code>cloud-api-adaptor</code> PR #3037 (CAA proxy, interceptor, Azure &amp; AWS provider changes).</p>
   </div>
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
@@ -767,29 +767,50 @@
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
 
-<!-- ==================== SLIDE 8: Azure Provider ==================== -->
+<!-- ==================== SLIDE 8: Cloud Providers ==================== -->
 <div class="slide slide--content" id="slide-8">
-  <h2>Component 4: Azure Provider</h2>
-  <p><span class="badge badge--purple">cloud-providers/azure/provider.go</span> <span class="badge badge--blue">PR #3037</span></p>
-  <ul style="margin:15px 0;">
-    <li>CSI volumes passed to <code>getVMParameters</code> as part of instance spec</li>
-    <li>Each volume attached as an Azure <strong>Managed Disk data disk</strong> during VM creation</li>
-    <li>LUN assignment matches the canonical index from proxy annotation</li>
-    <li>Disk delete option set to <strong>Detach</strong> &mdash; disk survives VM deletion for persistence</li>
-  </ul>
-  <div class="code-block">
-    <span class="comment">// Azure data disk attachment in VM creation</span><br>
-    <span class="keyword">for</span> i, vol := <span class="keyword">range</span> csiVolumes {<br>
-    &nbsp;&nbsp;dataDisks = <span class="cmd">append</span>(dataDisks, &amp;armcompute.DataDisk{<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;Lun:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to.Ptr(<span class="keyword">int32</span>(i)),<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;CreateOption: Attach,<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;DeleteOption: <span class="string">Detach</span>,&nbsp;&nbsp;<span class="comment">// disk survives VM deletion</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;ManagedDisk:&nbsp;&nbsp;&amp;{ ID: to.Ptr(vol.DiskID) },<br>
-    &nbsp;&nbsp;})<br>
-    }
+  <h2>Component 4: Cloud Providers</h2>
+  <p><span class="badge badge--purple">cloud-providers/azure/provider.go</span> <span class="badge badge--teal">cloud-providers/aws/provider.go</span> <span class="badge badge--blue">PR #3037</span></p>
+  <div class="two-col" style="margin-top:15px;">
+    <div class="col">
+      <h3 style="color:var(--rh-purple);">Azure &mdash; Managed Disks</h3>
+      <ul>
+        <li>Disks attached <strong>during VM creation</strong> via <code>getVMParameters</code></li>
+        <li>LUN assignment matches canonical index from proxy</li>
+        <li>Delete option set to <strong>Detach</strong> &mdash; disk survives VM deletion</li>
+        <li>Device path: <code>/dev/disk/azure/data/by-lun/N</code></li>
+      </ul>
+      <div class="code-block" style="font-size:0.75em;">
+        <span class="comment">// Azure: attach during VM creation</span><br>
+        dataDisks = <span class="cmd">append</span>(dataDisks, &amp;armcompute.DataDisk{<br>
+        &nbsp;&nbsp;Lun: to.Ptr(<span class="keyword">int32</span>(i)),<br>
+        &nbsp;&nbsp;DeleteOption: <span class="string">Detach</span>,<br>
+        &nbsp;&nbsp;ManagedDisk: &amp;{ ID: to.Ptr(vol.DiskID) },<br>
+        })
+      </div>
+    </div>
+    <div class="col">
+      <h3 style="color:var(--rh-teal);">AWS &mdash; EBS Volumes</h3>
+      <ul>
+        <li>Volumes attached <strong>after instance creation</strong> via <code>AttachVolume</code> API</li>
+        <li>Parallel attachment with consistent device naming (<code>/dev/xvd[b-z]</code>)</li>
+        <li>Multi-disk matching by <strong>EBS volume ID</strong>, not index</li>
+        <li>Device path: <code>/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_*</code></li>
+      </ul>
+      <div class="code-block" style="font-size:0.75em;">
+        <span class="comment">// AWS: attach after instance launch</span><br>
+        <span class="keyword">for</span> i, vol := <span class="keyword">range</span> csiVolumes {<br>
+        &nbsp;&nbsp;ec2Client.AttachVolume(&amp;ec2.AttachVolumeInput{<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;Device: <span class="cmd">ebsDeviceName</span>(i),<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;VolumeId: vol.DiskID,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;InstanceId: instanceID,<br>
+        &nbsp;&nbsp;})<br>
+        }
+      </div>
+    </div>
   </div>
   <div class="highlight-box">
-    <p><strong>Persistence model:</strong> Azure Managed Disk outlives the PodVM. When a new pod claims the same PVC, a new VM is created and the <em>same disk</em> is re-attached &mdash; data survives across pod restarts.</p>
+    <p><strong>Persistence model:</strong> Cloud disks outlive the PodVM on both providers. When a new pod claims the same PVC, a new VM is created and the <em>same disk</em> is re-attached &mdash; data survives across pod restarts.</p>
   </div>
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
@@ -801,9 +822,9 @@
     <div style="flex:1;">
       <h3 style="color:var(--rh-teal); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;">Volume Provisioning</h3>
       <div style="display:flex; flex-direction:column; gap:6px;">
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">1</span><span style="font-size:0.95em;">PVC created with <code>caa-block-azure</code> StorageClass</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">1</span><span style="font-size:0.95em;">PVC created with <code>caa-block-azure</code> / <code>caa-block-aws</code> StorageClass</span></div>
         <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">2</span><span style="font-size:0.95em;">External provisioner calls CSI driver <code>CreateVolume</code></span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">3</span><span style="font-size:0.95em;">CSI driver provisions Azure Managed Disk</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">3</span><span style="font-size:0.95em;">CSI driver provisions Azure Managed Disk / AWS EBS volume</span></div>
         <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">4</span><span style="font-size:0.95em;">PV created and bound to PVC</span></div>
       </div>
       <h3 style="color:var(--rh-blue); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;">Node Publish</h3>
@@ -816,7 +837,7 @@
       <h3 style="color:var(--rh-red); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;">CAA &amp; PodVM</h3>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">7</span><span style="font-size:0.95em;">CAA proxy reads <code>mountInfo.json</code>, builds <code>cloud_volumes</code></span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">8</span><span style="font-size:0.95em;">Azure provider attaches Managed Disk to PodVM (LUN N)</span></div>
+        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">8</span><span style="font-size:0.95em;">Cloud provider attaches disk to PodVM (Azure: during creation, AWS: after launch)</span></div>
         <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">9</span><span style="font-size:0.95em;">PodVM boots &rarr; annotation forwarded to interceptor</span></div>
         <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">10</span><span style="font-size:0.95em;">Interceptor detects device by LUN via sysfs/by-path</span></div>
         <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">11</span><span style="font-size:0.95em;">Format (if empty) &rarr; mount &rarr; bind-mount into container</span></div>
@@ -862,8 +883,8 @@
 
 <!-- ==================== SLIDE 11: Demo ==================== -->
 <div class="slide slide--dark" id="slide-11">
-  <h2>Demo: End-to-End on AKS</h2>
-  <div class="flow" style="margin:25px 0;">
+  <h2>Demo: End-to-End on AKS &amp; EKS</h2>
+  <div class="flow" style="margin:18px 0;">
     <div class="flow-step" style="background:var(--rh-blue);">Create PVC</div>
     <span class="flow-arrow" style="color:rgba(255,255,255,0.3);">&rarr;</span>
     <div class="flow-step" style="background:var(--rh-teal);">Writer Pod</div>
@@ -874,21 +895,36 @@
     <span class="flow-arrow" style="color:rgba(255,255,255,0.3);">&rarr;</span>
     <div class="flow-step" style="background:var(--rh-gray-dark);">Data Persists &#10003;</div>
   </div>
-  <div class="code-block" style="margin:15px 0;">
-    <span class="comment"># 1. Create PVC with caa-block-azure StorageClass</span><br>
-    <span class="cmd">$ kubectl apply -f</span> pvc.yaml<br><br>
-    <span class="comment"># 2. Deploy writer pod (peer pod with volume mount)</span><br>
-    <span class="cmd">$ kubectl apply -f</span> writer-pod.yaml<br>
-    <span class="cmd">$ kubectl exec</span> demo-writer -- sh -c <span class="string">'echo "hello from peer pod" > /mnt/data/demo.txt'</span><br><br>
-    <span class="comment"># 3. Delete writer pod — PodVM is destroyed, disk detached but persists</span><br>
-    <span class="cmd">$ kubectl delete pod</span> demo-writer<br><br>
-    <span class="comment"># 4. Deploy reader pod — new PodVM created, same disk re-attached</span><br>
-    <span class="cmd">$ kubectl apply -f</span> reader-pod.yaml<br>
-    <span class="cmd">$ kubectl exec</span> demo-reader -- cat /mnt/data/demo.txt<br>
-    <span class="string">hello from peer pod</span>&nbsp;&nbsp;<span class="comment"># &larr; Data persisted!</span>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div>
+      <p style="color:var(--rh-purple); font-weight:700; font-size:0.9em; margin-bottom:6px;">Azure (AKS) &mdash; Managed Disks</p>
+      <div class="code-block" style="margin:0; font-size:0.72em;">
+        <span class="cmd">$ kubectl apply -f</span> demo/azure/pvc.yaml<br>
+        <span class="cmd">$ kubectl apply -f</span> demo/azure/writer-pod.yaml<br>
+        <span class="cmd">$ kubectl logs</span> demo-writer<br>
+        <span class="string">Data written successfully</span><br>
+        <span class="cmd">$ kubectl delete pod</span> demo-writer<br>
+        <span class="cmd">$ kubectl apply -f</span> demo/azure/reader-pod.yaml<br>
+        <span class="cmd">$ kubectl logs</span> demo-reader<br>
+        <span class="string">hello from Azure peer pod</span>&nbsp;<span class="comment"># &larr; Persisted!</span>
+      </div>
+    </div>
+    <div>
+      <p style="color:var(--rh-teal); font-weight:700; font-size:0.9em; margin-bottom:6px;">AWS (EKS) &mdash; EBS Volumes</p>
+      <div class="code-block" style="margin:0; font-size:0.72em;">
+        <span class="cmd">$ kubectl apply -f</span> demo/aws/pvc.yaml<br>
+        <span class="cmd">$ kubectl apply -f</span> demo/aws/writer-pod.yaml<br>
+        <span class="cmd">$ kubectl logs</span> demo-writer<br>
+        <span class="string">Data written successfully</span><br>
+        <span class="cmd">$ kubectl delete pod</span> demo-writer<br>
+        <span class="cmd">$ kubectl apply -f</span> demo/aws/reader-pod.yaml<br>
+        <span class="cmd">$ kubectl logs</span> demo-reader<br>
+        <span class="string">hello from AWS peer pod</span>&nbsp;<span class="comment"># &larr; Persisted!</span>
+      </div>
+    </div>
   </div>
-  <p style="text-align:center; color:rgba(255,255,255,0.5); font-size:0.9em; margin-top:12px;">
-    Tested on AKS with Standard_D2as_v5 VMs &nbsp;|&nbsp; Azure Managed Disks &nbsp;|&nbsp; ext4 &nbsp;|&nbsp; Kata Peer Pods
+  <p style="text-align:center; color:rgba(255,255,255,0.4); font-size:0.8em; margin-top:12px;">
+    Both single-disk and multi-disk scenarios tested &nbsp;|&nbsp; Writer &rarr; delete &rarr; reader on new PodVM &nbsp;|&nbsp; Data intact
   </p>
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
@@ -916,21 +952,24 @@
       <h3>Proxy Cloud Volumes Tests</h3>
       <ul>
         <li><strong>9 tests</strong> for <code>cloud_volumes</code> annotation builder</li>
-        <li>Single &amp; multiple volumes</li>
-        <li>fs_type from mountInfo, fallback to ext4</li>
-        <li>Cross-pod isolation (other pods' volumes skipped)</li>
-        <li>Invalid mountInfo.json handling</li>
+        <li>Single &amp; multiple volumes, LUN consistency</li>
+        <li>Cross-pod isolation, invalid JSON handling</li>
       </ul>
-      <h3>LUN Index Consistency</h3>
+      <h3>AWS Provider Tests</h3>
       <ul>
-        <li>Dedicated test for Pradipta's scenario: volume with no OCI mount</li>
-        <li>Verifies LUN index still increments (vol-c gets LUN 2, not 1)</li>
-        <li>Prevents wrong-disk attachment</li>
+        <li><code>TestAttachEBSVolumes</code> &mdash; single &amp; multiple volumes</li>
+        <li><code>TestCreateInstanceWithVolumes</code> &mdash; full flow</li>
+        <li><code>TestEBSDeviceName</code> &mdash; device naming logic</li>
+      </ul>
+      <h3>Interceptor Tests</h3>
+      <ul>
+        <li>Cloud volume parsing, validation, error handling</li>
+        <li>Provider detection, device detection logic</li>
       </ul>
     </div>
   </div>
   <div class="highlight-box">
-    <p><strong>Total:</strong> 22 unit tests across <code>cloud_csi_test.go</code> and <code>cloud_volumes_test.go</code>, plus CSI conformance suite. All passing.</p>
+    <p><strong>Total:</strong> 30+ unit tests across <code>cloud_csi_test.go</code>, <code>cloud_volumes_test.go</code>, <code>interceptor_test.go</code>, <code>aws/provider_test.go</code>, and <code>azure/provider_test.go</code>, plus CSI conformance suite. All passing.</p>
   </div>
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
 </div>
@@ -948,7 +987,7 @@
     <tr>
       <td><strong>#3037</strong></td>
       <td>confidential-containers/<br>cloud-api-adaptor</td>
-      <td>Cloud-native volume passthrough &mdash; CAA proxy, interceptor, Azure provider + unit tests (5 commits)</td>
+      <td>Cloud-native volume passthrough &mdash; CAA proxy, interceptor, Azure &amp; AWS providers + unit tests (2 commits)</td>
       <td><span class="status-review">Under Review</span></td>
     </tr>
     <tr>
@@ -970,15 +1009,15 @@
       <ul>
         <li>All review feedback addressed (Copilot + maintainer)</li>
         <li>CodeQL and DCO checks passing</li>
-        <li>Unit tests added (22 tests)</li>
-        <li>End-to-end tested on AKS</li>
+        <li>30+ unit tests (proxy, interceptor, AWS, Azure)</li>
+        <li>End-to-end tested on AKS (Azure) and EKS (AWS)</li>
+        <li>Single-disk and multi-disk scenarios validated</li>
         <li>CSI driver repo with CI/CD pipeline</li>
       </ul>
     </div>
     <div class="col">
       <h3>Future Work</h3>
       <ul>
-        <li>AWS end-to-end testing (NVMe device detection via <code>nvme id-ctrl</code>)</li>
         <li>Libvirt end-to-end testing</li>
         <li>Encrypted volumes with CDH (LUKS2 + KBS attestation)</li>
         <li>Upstream CSI driver to confidential-containers org</li>
@@ -1007,7 +1046,8 @@
         <li>Proxy builds <code>cloud_volumes</code> annotation with pod UID filtering</li>
         <li>Interceptor: provider-aware device detection + safe format/mount</li>
         <li>Azure provider: Managed Disk attach with LUN indexing</li>
-        <li>22 unit tests covering all critical paths</li>
+        <li>AWS provider: EBS attach with volume ID matching</li>
+        <li>30+ unit tests covering all critical paths</li>
       </ul>
     </div>
     <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
@@ -1022,8 +1062,8 @@
     <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
       <h3 style="color:var(--rh-blue); margin-top:0;">Proven</h3>
       <ul>
-        <li>End-to-end demo on AKS &mdash; data persists across pod restarts</li>
-        <li>Writer pod &rarr; delete &rarr; reader pod &rarr; data intact</li>
+        <li>End-to-end demo on AKS &amp; EKS &mdash; data persists across pod restarts</li>
+        <li>Single-disk and multi-disk validated on both providers</li>
         <li>Standard K8s PVC/StorageClass workflow &mdash; zero app changes</li>
         <li>Transparent to the workload</li>
       </ul>
