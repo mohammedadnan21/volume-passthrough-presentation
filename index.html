@@ -453,6 +453,130 @@
     z-index: 100;
   }
 
+  /* ===== INTERACTIVE ENHANCEMENTS ===== */
+
+  /* Progress bar */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 4px;
+    background: var(--rh-red);
+    z-index: 200;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Slide transition */
+  .slide {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Progressive reveal: items hidden until revealed */
+  .reveal-item {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .reveal-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Hover effects on architecture boxes */
+  .arch-box {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+  }
+  .arch-box:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  }
+
+  /* Hover effects on security cards */
+  .security-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
+    cursor: default;
+  }
+  .security-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    border-left-color: var(--rh-red-dark);
+  }
+
+  /* Hover effects on flow steps */
+  .flow-step {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+  }
+  .flow-step:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+
+  /* Hover on code blocks */
+  .code-block {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .code-block:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    transform: translateY(-2px);
+  }
+
+  /* Hover on provider table rows */
+  .provider-table tr:hover td,
+  .pr-table tr:hover td {
+    background: rgba(238,0,0,0.06) !important;
+    transition: background 0.2s ease;
+  }
+
+  /* Keyboard help overlay */
+  .help-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .help-overlay.visible { display: flex; }
+  .help-box {
+    background: var(--rh-white);
+    color: var(--rh-black);
+    border-radius: 16px;
+    padding: 36px 48px;
+    max-width: 480px;
+    font-family: 'Red Hat Text', sans-serif;
+  }
+  .help-box h3 {
+    color: var(--rh-red);
+    margin-bottom: 16px;
+    font-size: 1.4em;
+  }
+  .help-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rh-gray-light);
+  }
+  .help-row:last-child { border-bottom: none; }
+  .help-key {
+    font-family: 'Red Hat Mono', monospace;
+    background: var(--rh-gray-bg);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 700;
+    border: 1px solid var(--rh-gray-light);
+  }
+
   .three-col {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -547,7 +671,7 @@
 <div class="slide slide--content" id="slide-2">
   <h2>Gaps with Existing Persistent Storage Solutions for Peer-Pods</h2>
   <div class="two-col">
-    <div class="col">
+    <div class="col reveal-item">
       <h3 style="color:var(--rh-blue);">CSI-Wrapper Approach</h3>
       <p style="font-size:0.9em;">Wraps existing CSI drivers by intercepting gRPC calls via a proxy. Uses a CRD (<code>PeerpodVolume</code>) to coordinate attachment.</p>
       <ul>
@@ -560,7 +684,7 @@
         <li>In managed services (e.g. OpenShift), patching CSI drivers is not possible as they are managed entities</li>
       </ul>
     </div>
-    <div class="col">
+    <div class="col reveal-item">
       <h3 style="color:var(--rh-blue);">Direct Remote FS Mounting</h3>
       <p style="font-size:0.9em;">Mount object storage (S3 via Mountpoint, Azure Blob via BlobFuse) directly inside the container using FUSE.</p>
       <ul>
@@ -582,7 +706,7 @@
 <div class="slide slide--diagram" id="slide-3">
   <h2>Solution: End-to-End Architecture</h2>
   <div class="arch-diagram">
-    <div class="arch-section">
+    <div class="arch-section reveal-item">
       <div class="arch-section-label">Worker Node (Host)</div>
       <div class="arch-row">
         <div class="arch-box arch-box--k8s">Kubernetes<br>PVC / StorageClass</div>
@@ -598,9 +722,9 @@
         <div class="arch-box arch-box--cloud">Cloud Provider<br><small>attaches disk to PodVM<br>with LUN indexing</small></div>
       </div>
     </div>
-    <div class="arch-arrow">&darr;</div>
-    <div class="arch-label">Forwards annotation &amp; attaches cloud disk</div>
-    <div class="arch-section">
+    <div class="arch-arrow reveal-item">&darr;</div>
+    <div class="arch-label reveal-item">Forwards annotation &amp; attaches cloud disk</div>
+    <div class="arch-section reveal-item">
       <div class="arch-section-label">PodVM (Guest)</div>
       <div class="arch-row">
         <div class="arch-box arch-box--vm">Interceptor<br><small>parse cloud_volumes &rarr;<br>detect &rarr; format &rarr; mount</small></div>
@@ -772,7 +896,7 @@
   <h2>Component 4: Cloud Providers</h2>
   <p><span class="badge badge--purple">cloud-providers/azure/provider.go</span> <span class="badge badge--teal">cloud-providers/aws/provider.go</span> <span class="badge badge--blue">PR #3037</span></p>
   <div class="two-col" style="margin-top:15px;">
-    <div class="col">
+    <div class="col reveal-item">
       <h3 style="color:var(--rh-purple);">Azure &mdash; Managed Disks</h3>
       <ul>
         <li>Disks attached <strong>during VM creation</strong> via <code>getVMParameters</code></li>
@@ -789,7 +913,7 @@
         })
       </div>
     </div>
-    <div class="col">
+    <div class="col reveal-item">
       <h3 style="color:var(--rh-teal);">AWS &mdash; EBS Volumes</h3>
       <ul>
         <li>Volumes attached <strong>after instance creation</strong> via <code>AttachVolume</code> API</li>
@@ -820,30 +944,30 @@
   <h2>End-to-End Call Flow</h2>
   <div style="display:flex; gap:30px; margin-top:10px;">
     <div style="flex:1;">
-      <h3 style="color:var(--rh-teal); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;">Volume Provisioning</h3>
+      <h3 style="color:var(--rh-teal); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;" class="reveal-item">Volume Provisioning</h3>
       <div style="display:flex; flex-direction:column; gap:6px;">
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">1</span><span style="font-size:0.95em;">PVC created with <code>caa-block-azure</code> / <code>caa-block-aws</code> StorageClass</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">2</span><span style="font-size:0.95em;">External provisioner calls CSI driver <code>CreateVolume</code></span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">3</span><span style="font-size:0.95em;">CSI driver provisions Azure Managed Disk / AWS EBS volume</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box">4</span><span style="font-size:0.95em;">PV created and bound to PVC</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box">1</span><span style="font-size:0.95em;">PVC created with <code>caa-block-azure</code> / <code>caa-block-aws</code> StorageClass</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box">2</span><span style="font-size:0.95em;">External provisioner calls CSI driver <code>CreateVolume</code></span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box">3</span><span style="font-size:0.95em;">CSI driver provisions Azure Managed Disk / AWS EBS volume</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box">4</span><span style="font-size:0.95em;">PV created and bound to PVC</span></div>
       </div>
-      <h3 style="color:var(--rh-blue); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;">Node Publish</h3>
+      <h3 style="color:var(--rh-blue); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;" class="reveal-item">Node Publish</h3>
       <div style="display:flex; flex-direction:column; gap:6px;">
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-blue);">5</span><span style="font-size:0.95em;">Pod scheduled &rarr; kubelet calls <code>NodePublishVolume</code></span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-blue);">6</span><span style="font-size:0.95em;">CSI driver writes <code>mountInfo.json</code> (no mount on host)</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-blue);">5</span><span style="font-size:0.95em;">Pod scheduled &rarr; kubelet calls <code>NodePublishVolume</code></span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-blue);">6</span><span style="font-size:0.95em;">CSI driver writes <code>mountInfo.json</code> (no mount on host)</span></div>
       </div>
     </div>
     <div style="flex:1;">
-      <h3 style="color:var(--rh-red); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;">CAA &amp; PodVM</h3>
+      <h3 style="color:var(--rh-red); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-bottom:12px;" class="reveal-item">CAA &amp; PodVM</h3>
       <div style="display:flex; flex-direction:column; gap:6px;">
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">7</span><span style="font-size:0.95em;">CAA proxy reads <code>mountInfo.json</code>, builds <code>cloud_volumes</code></span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">8</span><span style="font-size:0.95em;">Cloud provider attaches disk to PodVM (Azure: during creation, AWS: after launch)</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">9</span><span style="font-size:0.95em;">PodVM boots &rarr; annotation forwarded to interceptor</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">10</span><span style="font-size:0.95em;">Interceptor detects device by LUN via sysfs/by-path</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-red);">11</span><span style="font-size:0.95em;">Format (if empty) &rarr; mount &rarr; bind-mount into container</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-red);">7</span><span style="font-size:0.95em;">CAA proxy reads <code>mountInfo.json</code>, builds <code>cloud_volumes</code></span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-red);">8</span><span style="font-size:0.95em;">Cloud provider attaches disk to PodVM (Azure: during creation, AWS: after launch)</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-red);">9</span><span style="font-size:0.95em;">PodVM boots &rarr; annotation forwarded to interceptor</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-red);">10</span><span style="font-size:0.95em;">Interceptor detects device by LUN via sysfs/by-path</span></div>
+        <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-red);">11</span><span style="font-size:0.95em;">Format (if empty) &rarr; mount &rarr; bind-mount into container</span></div>
       </div>
-      <h3 style="color:var(--rh-purple); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;">Result</h3>
-      <div style="display:flex; align-items:center; gap:10px;"><span class="num-box" style="background:var(--rh-purple);">12</span><span style="font-size:0.95em;">Container sees <code>/mnt/data</code> &mdash; persistent block volume</span></div>
+      <h3 style="color:var(--rh-purple); border-bottom:2px solid var(--rh-gray-light); padding-bottom:6px; margin-top:20px; margin-bottom:12px;" class="reveal-item">Result</h3>
+      <div style="display:flex; align-items:center; gap:10px;" class="reveal-item"><span class="num-box" style="background:var(--rh-purple);">12</span><span style="font-size:0.95em;">Container sees <code>/mnt/data</code> &mdash; persistent block volume</span></div>
     </div>
   </div>
   <div class="slide-footer"><span class="logo">Red Hat</span><span>caa-csi-block-driver &middot; Confidential Containers</span></div>
@@ -853,27 +977,27 @@
 <div class="slide slide--content" id="slide-10">
   <h2>Security &amp; Safety</h2>
   <div class="security-grid">
-    <div class="security-card">
+    <div class="security-card reveal-item">
       <h4>Pod-Level Volume Isolation</h4>
       <p>Volumes filtered by <code>io.kubernetes.cri.sandbox-uid</code> &mdash; a PodVM can never access another pod's managed disk.</p>
     </div>
-    <div class="security-card">
+    <div class="security-card reveal-item">
       <h4>Path Traversal Prevention</h4>
       <p>Volume names sanitized with <code>filepath.Base()</code> &mdash; names like <code>../../etc</code> are rejected before mount point construction.</p>
     </div>
-    <div class="security-card">
+    <div class="security-card reveal-item">
       <h4>Filesystem Type Allowlist</h4>
       <p>Only <code>ext4</code>, <code>ext3</code>, <code>xfs</code> allowed. Prevents arbitrary command execution via <code>mkfs.&lt;attacker-input&gt;</code>.</p>
     </div>
-    <div class="security-card">
+    <div class="security-card reveal-item">
       <h4>Idempotent Mounting</h4>
       <p>Checks <code>mountinfo.Mounted()</code> before format/mount. Prevents double-mount errors and accidental reformatting.</p>
     </div>
-    <div class="security-card">
+    <div class="security-card reveal-item">
       <h4>Safe Format Logic</h4>
       <p>Mount-first approach: tries mounting before formatting. Existing data is never overwritten. Only truly empty disks get <code>mkfs</code>.</p>
     </div>
-    <div class="security-card">
+    <div class="security-card reveal-item">
       <h4>Integer Bounds Checking</h4>
       <p>Explicit bounds checks before <code>int</code> to <code>int32</code> narrowing conversions. Prevents overflow in LUN indexing (CodeQL validated).</p>
     </div>
@@ -1031,7 +1155,7 @@
 <div class="slide slide--dark" id="slide-14">
   <h2>Summary</h2>
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-top:15px;">
-    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+    <div class="reveal-item" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
       <h3 style="color:var(--rh-teal); margin-top:0;">CSI Block Driver</h3>
       <ul>
         <li>Pluggable CSI driver bridging K8s storage and Peer Pods</li>
@@ -1040,7 +1164,7 @@
         <li>CSI conformance tested, Helm chart, GitHub Actions CI</li>
       </ul>
     </div>
-    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+    <div class="reveal-item" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
       <h3 style="color:var(--rh-red); margin-top:0;">CAA Integration (PR #3037)</h3>
       <ul>
         <li>Proxy builds <code>cloud_volumes</code> annotation with pod UID filtering</li>
@@ -1050,7 +1174,7 @@
         <li>30+ unit tests covering all critical paths</li>
       </ul>
     </div>
-    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+    <div class="reveal-item" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
       <h3 style="color:var(--rh-purple); margin-top:0;">Security</h3>
       <ul>
         <li>Pod-level volume isolation via UID filtering</li>
@@ -1059,7 +1183,7 @@
         <li>Integer bounds checking (CodeQL validated)</li>
       </ul>
     </div>
-    <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
+    <div class="reveal-item" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:22px;">
       <h3 style="color:var(--rh-blue); margin-top:0;">Proven</h3>
       <ul>
         <li>End-to-end demo on AKS &amp; EKS &mdash; data persists across pod restarts</li>
@@ -1113,6 +1237,24 @@
   </div>
 </div>
 
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar" style="width:6.67%"></div>
+
+<!-- Keyboard Help Overlay -->
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-box">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="help-row"><span>Next slide / reveal</span><span class="help-key">&rarr;</span></div>
+    <div class="help-row"><span>Previous slide</span><span class="help-key">&larr;</span></div>
+    <div class="help-row"><span>Next slide / reveal</span><span class="help-key">Space</span></div>
+    <div class="help-row"><span>Reveal all on slide</span><span class="help-key">&darr;</span></div>
+    <div class="help-row"><span>First slide</span><span class="help-key">Home</span></div>
+    <div class="help-row"><span>Last slide</span><span class="help-key">End</span></div>
+    <div class="help-row"><span>Toggle help</span><span class="help-key">?</span></div>
+    <p style="margin-top:16px; font-size:0.85em; color:var(--rh-gray-mid); text-align:center;">Press any key to close</p>
+  </div>
+</div>
+
 <!-- Navigation -->
 <div class="nav">
   <button onclick="prevSlide()" aria-label="Previous slide">&larr;</button>
@@ -1123,29 +1265,104 @@
 <script>
   let current = 1;
   const total = 15;
+  let revealIndex = {};
+
+  function getRevealItems(n) {
+    const slide = document.getElementById('slide-' + n);
+    return slide ? Array.from(slide.querySelectorAll('.reveal-item')) : [];
+  }
+
+  function updateProgress() {
+    const pct = (current / total) * 100;
+    document.getElementById('progressBar').style.width = pct + '%';
+  }
 
   function showSlide(n) {
     document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
-    document.getElementById('slide-' + n).classList.add('active');
+    const slide = document.getElementById('slide-' + n);
+    slide.classList.add('active');
     document.getElementById('counter').textContent = n + ' / ' + total;
-    const bg = document.getElementById('slide-' + n).classList;
+
+    const bg = slide.classList;
     const counter = document.getElementById('counter');
-    if (bg.contains('slide--content') || bg.contains('slide--diagram')) {
-      counter.style.color = 'rgba(0,0,0,0.3)';
-    } else {
-      counter.style.color = 'rgba(255,255,255,0.4)';
+    counter.style.color = (bg.contains('slide--content') || bg.contains('slide--diagram'))
+      ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.4)';
+
+    updateProgress();
+
+    const items = getRevealItems(n);
+    if (items.length === 0) return;
+
+    if (!(n in revealIndex)) {
+      revealIndex[n] = 0;
+      items.forEach(el => el.classList.remove('visible'));
+      revealNextBatch(n);
     }
   }
 
-  function nextSlide() { if (current < total) { current++; showSlide(current); } }
-  function prevSlide() { if (current > 1) { current--; showSlide(current); } }
+  function revealNextBatch(n) {
+    const items = getRevealItems(n);
+    const idx = revealIndex[n] || 0;
+    if (idx < items.length) {
+      items[idx].classList.add('visible');
+      revealIndex[n] = idx + 1;
+      return true;
+    }
+    return false;
+  }
+
+  function revealAll(n) {
+    const items = getRevealItems(n);
+    items.forEach(el => el.classList.add('visible'));
+    revealIndex[n] = items.length;
+  }
+
+  function advanceOrNext() {
+    const items = getRevealItems(current);
+    const idx = revealIndex[current] || 0;
+    if (idx < items.length) {
+      revealNextBatch(current);
+    } else {
+      if (current < total) {
+        current++;
+        showSlide(current);
+      }
+    }
+  }
+
+  function prevSlide() {
+    if (current > 1) {
+      current--;
+      revealIndex[current] = undefined;
+      showSlide(current);
+      revealAll(current);
+    }
+  }
+
+  function nextSlide() { advanceOrNext(); }
 
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    const help = document.getElementById('helpOverlay');
+    if (help.classList.contains('visible')) {
+      help.classList.remove('visible');
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+      e.preventDefault();
+      help.classList.add('visible');
+      return;
+    }
+
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); advanceOrNext(); }
     if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
-    if (e.key === 'Home') { current = 1; showSlide(current); }
-    if (e.key === 'End') { current = total; showSlide(current); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); revealAll(current); }
+    if (e.key === 'Home') { e.preventDefault(); current = 1; revealIndex = {}; showSlide(current); }
+    if (e.key === 'End') { e.preventDefault(); current = total; revealIndex = {}; showSlide(current); revealAll(current); }
   });
+
+  showSlide(1);
 </script>
 
 </body>
